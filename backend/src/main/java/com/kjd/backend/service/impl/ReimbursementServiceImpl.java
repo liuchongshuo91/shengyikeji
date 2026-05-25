@@ -1,5 +1,7 @@
 package com.kjd.backend.service.impl;
 
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.kjd.backend.dto.ReimbursementQueryDTO;
 import com.kjd.backend.entity.Allocation;
 import com.kjd.backend.entity.CalendarDay;
@@ -57,7 +59,8 @@ public class ReimbursementServiceImpl implements ReimbursementService {
         int page = Math.max(query.page, 1);
         int size = Math.max(query.size, 1);
 
-        Long total = reimbursementMapper.selectCountWithCondition(
+        IPage<Reimbursement> result = reimbursementMapper.selectPageList(
+                new Page<>(page, size),
                 query.reimbursementNo,
                 query.reimbursementTitle,
                 query.businessTripReason,
@@ -67,32 +70,11 @@ public class ReimbursementServiceImpl implements ReimbursementService {
                 query.businessTypeId
         );
 
-        List<Reimbursement> records = new ArrayList<>();
-        if (total > 0) {
-            records = reimbursementMapper.selectPageList(
-                    query.reimbursementNo,
-                    query.reimbursementTitle,
-                    query.businessTripReason,
-                    query.reimCompanyId,
-                    query.reimDepartmentId,
-                    query.reimburserId,
-                    query.businessTypeId
-            );
-            // 手动分页
-            int fromIndex = (page - 1) * size;
-            int toIndex = Math.min(fromIndex + size, records.size());
-            if (fromIndex < records.size()) {
-                records = records.subList(fromIndex, toIndex);
-            } else {
-                records = new ArrayList<>();
-            }
-            // 设置状态名称
-            for (Reimbursement record : records) {
-                record.setStatusName(statusName(record.getStatus()));
-            }
+        for (Reimbursement record : result.getRecords()) {
+            record.setStatusName(statusName(record.getStatus()));
         }
 
-        return new PageResultVO<>(total == null ? 0 : total, page, size, records);
+        return new PageResultVO<>(result.getTotal(), page, size, result.getRecords());
     }
 
     @Override
@@ -132,6 +114,12 @@ public class ReimbursementServiceImpl implements ReimbursementService {
         item.setStatus(submit ? 1 : 0);
 
         boolean isNew = !StringUtils.hasText(item.getId());
+        if (!isNew) {
+            Reimbursement existing = reimbursementMapper.selectById(item.getId());
+            if (existing == null) throw new IllegalArgumentException("单据不存在");
+            if (existing.getStatus() == 2) throw new IllegalArgumentException("已作废单据不可编辑");
+            if (existing.getStatus() == 1 && !submit) throw new IllegalArgumentException("已提交单据不可退回草稿");
+        }
         if (isNew) {
             item.setId(uuid());
         }
@@ -158,6 +146,9 @@ public class ReimbursementServiceImpl implements ReimbursementService {
 
     @Override
     public void voidDocument(String id) {
+        Reimbursement existing = reimbursementMapper.selectById(id);
+        if (existing == null) throw new IllegalArgumentException("单据不存在");
+        if (existing.getStatus() == 2) throw new IllegalArgumentException("单据已作废，不可重复作废");
         reimbursementMapper.updateStatusById(id, 2);
     }
 
@@ -388,7 +379,8 @@ public class ReimbursementServiceImpl implements ReimbursementService {
     }
 
     private String nextNo() {
-        return "CLBX" + LocalDate.now().toString().replace("-", "") + System.currentTimeMillis() % 100000;
+        return "CLBX" + LocalDate.now().toString().replace("-", "")
+                + UUID.randomUUID().toString().replace("-", "").substring(0, 8).toUpperCase();
     }
 
     private static String toReimbursedString(CalendarDay day) {

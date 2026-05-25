@@ -78,9 +78,13 @@ function openDetail(id?: string) {
 
 async function voidDocument(row: any) {
   await ElMessageBox.confirm('确定作废当前单据吗？', '提示', { type: 'warning' })
-  await api.voidDocument(row.id)
-  ElMessage.success('作废成功')
-  loadPage()
+  try {
+    await api.voidDocument(row.id)
+    ElMessage.success('作废成功')
+    loadPage()
+  } catch (error: any) {
+    ElMessage.error(error.message || '作废失败')
+  }
 }
 
 onMounted(async () => {

@@ -61,7 +61,8 @@ public class DatabaseInitializer {
                   status int,
                   reim_no varchar(32),
                   submit_date date,
-                  allocations_json text
+                  allocations_json text,
+                  version int default 0
                 )
                 """);
         jdbcTemplate.execute("""
@@ -131,7 +132,6 @@ public class DatabaseInitializer {
         addItineraryColumns();
         addSubsidyColumns();
         addCalendarColumns();
-        dropUniqueIndex("fk_reim_main", "reim_no");
         modifyColumn("fk_reim_main", "reim_no", "varchar(32) null");
         relaxLegacyRequiredColumns("fk_reim_main");
         relaxLegacyRequiredColumns("fk_reim_itinerary");
@@ -185,6 +185,7 @@ public class DatabaseInitializer {
         addColumn("fk_reim_main", "reim_no", "varchar(32)");
         addColumn("fk_reim_main", "submit_date", "date");
         addColumn("fk_reim_main", "allocations_json", "text");
+        addColumn("fk_reim_main", "version", "int default 0");
     }
 
     private void addItineraryColumns() {
