@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kjd.backend.mapper.CalendarDayMapper">
+
+    <!-- 通用查询映射结果 -->
+    <resultMap id="BaseResultMap" type="com.kjd.backend.entity.CalendarDay">
+        <id column="id" property="id"/>
+        <result column="main_id" property="mainId"/>
+        <result column="travel_date" property="tripDate"/>
+        <result column="travel_date_week" property="weekName"/>
+        <result column="subsidized_cities" property="subsidyCity"/>
+        <result column="is_reimbursed" property="reimbursed"/>
+        <result column="standard_meal_expenses_amount" property="mealStandard"/>
+        <result column="standard_traffic_amount" property="transportStandard"/>
+        <result column="standard_communication_amount" property="phoneStandard"/>
+        <result column="meal_expenses_amount" property="mealAmount"/>
+        <result column="traffic_amount" property="transportAmount"/>
+        <result column="communication_amount" property="phoneAmount"/>
+    </resultMap>
+
+    <!-- 根据补助ID查询日历明细 -->
+    <select id="selectBySubsidyId" resultMap="BaseResultMap">
+        SELECT * FROM fk_subsidy_calendar
+        WHERE main_id = #{subsidyId}
+        ORDER BY travel_date
+    </select>
+
+    <!-- 根据补助ID删除日历明细 -->
+    <delete id="deleteBySubsidyId">
+        DELETE FROM fk_subsidy_calendar WHERE main_id = #{subsidyId}
+    </delete>
+
+    <!-- 根据主表ID删除日历明细（通过补助表关联） -->
+    <delete id="deleteByMainId">
+        DELETE FROM fk_subsidy_calendar
+        WHERE main_id IN (
+            SELECT id FROM fk_reim_subsidy WHERE main_id = #{mainId}
+        )
+    </delete>
+
+</mapper>

@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kjd.backend.mapper.SubsidyMapper">
+
+    <!-- 通用查询映射结果 -->
+    <resultMap id="BaseResultMap" type="com.kjd.backend.entity.Subsidy">
+        <id column="id" property="id"/>
+        <result column="main_id" property="mainId"/>
+        <result column="trip_id" property="tripId"/>
+        <result column="traveler_id" property="travelerId"/>
+        <result column="traveler_name" property="travelerName"/>
+        <result column="subsidy_days" property="days"/>
+        <result column="arriving_city" property="subsidyCity"/>
+        <result column="application_amount" property="applyAmount"/>
+        <result column="subsidy_amount" property="subsidyAmount"/>
+    </resultMap>
+
+    <!-- 根据主表ID查询补助列表 -->
+    <select id="selectByMainId" resultMap="BaseResultMap">
+        SELECT * FROM fk_reim_subsidy
+        WHERE main_id = #{mainId}
+        ORDER BY departure_date, id
+    </select>
+
+    <!-- 根据主表ID删除补助 -->
+    <delete id="deleteByMainId">
+        DELETE FROM fk_reim_subsidy WHERE main_id = #{mainId}
+    </delete>
+
+</mapper>
