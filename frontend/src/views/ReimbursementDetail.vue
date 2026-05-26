@@ -750,8 +750,20 @@ onMounted(init)
 .base-form label,
 .trip-form label {
   display: grid;
-  grid-template-columns: 92px minmax(0, 1fr);
+  grid-template-columns: 100px minmax(0, 1fr);
   align-items: center;
+}
+
+.base-form :deep(.el-select),
+.base-form :deep(.el-tree-select) {
+  max-width: 240px;
+}
+
+.base-form :deep(.el-select .el-select__selected-item),
+.base-form :deep(.el-select .el-input__inner) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .base-form .wide,

@@ -180,9 +180,7 @@ onMounted(async () => {
             <span class="theme-link">{{ row.statusName }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="单据类型" width="110">
-          <template #default>日常报销单</template>
-        </el-table-column>
+        <el-table-column prop="documentType" label="单据类型" width="110" />
         <el-table-column label="报销人" width="150">
           <template #default="{ row }">{{ row.reimburserName }}[{{ row.reimburserNo }}]</template>
         </el-table-column>
@@ -241,7 +239,7 @@ onMounted(async () => {
 
 .query-grid label {
   display: grid;
-  grid-template-columns: 90px minmax(0, 1fr);
+  grid-template-columns: 100px minmax(0, 1fr);
   align-items: center;
   color: #697386;
 }

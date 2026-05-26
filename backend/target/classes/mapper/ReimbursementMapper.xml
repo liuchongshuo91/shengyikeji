@@ -23,6 +23,7 @@
         <result column="business_type_no" property="businessTypeNo"/>
         <result column="business_type_name" property="businessTypeName"/>
         <result column="business_trip_reason" property="businessTripReason"/>
+        <result column="document_type" property="documentType"/>
         <result column="subsidy_total" property="subsidyTotal"/>
         <result column="meal_allowance" property="mealAllowance"/>
         <result column="transportation_allowance" property="transportationAllowance"/>

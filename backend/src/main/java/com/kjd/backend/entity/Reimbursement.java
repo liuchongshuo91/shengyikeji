@@ -81,6 +81,9 @@ public class Reimbursement {
     @TableField("business_trip_reason")
     private String businessTripReason;
 
+    @TableField("document_type")
+    private String documentType = "日常报销单";
+
     @TableField("subsidy_total")
     private BigDecimal subsidyTotal = BigDecimal.ZERO;
 

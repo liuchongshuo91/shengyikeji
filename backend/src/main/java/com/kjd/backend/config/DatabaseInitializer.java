@@ -53,6 +53,7 @@ public class DatabaseInitializer {
                   business_type_no varchar(20),
                   business_type_name varchar(40),
                   business_trip_reason varchar(500),
+                  document_type varchar(50) default '日常报销单',
                   subsidy_total varchar(20),
                   meal_allowance varchar(20),
                   transportation_allowance varchar(20),
@@ -129,6 +130,7 @@ public class DatabaseInitializer {
     private void migrateTables() {
         migrateCreationTimeColumn();
         addMainColumns();
+        addDocumentTypeColumn();
         addItineraryColumns();
         addSubsidyColumns();
         addCalendarColumns();
@@ -186,6 +188,10 @@ public class DatabaseInitializer {
         addColumn("fk_reim_main", "submit_date", "date");
         addColumn("fk_reim_main", "allocations_json", "text");
         addColumn("fk_reim_main", "version", "int default 0");
+    }
+
+    private void addDocumentTypeColumn() {
+        addColumn("fk_reim_main", "document_type", "varchar(50) default '日常报销单'");
     }
 
     private void addItineraryColumns() {
@@ -261,6 +267,7 @@ public class DatabaseInitializer {
             item.setReimCompanyName("胜意科技北京分公司");
             item.setBusinessTypeId("1B5FEB7DD4396000");
             item.setBusinessTypeName(i == 7 || i == 9 ? "项目出差" : "项目出差");
+            item.setDocumentType("日常报销单");
             item.setSubsidyTotal(BigDecimal.ZERO);
             reimbursementMapper.insert(item);
         }
