@@ -13,11 +13,11 @@ import java.time.LocalDate;
 @TableName("fk_subsidy_calendar")
 public class CalendarDay {
 
-    @TableId(type = IdType.ASSIGN_UUID)
-    private String id;
+    @TableId(type = IdType.AUTO)
+    private Long id;
 
     @TableField("main_id")
-    private String mainId;
+    private Long mainId;
 
     @TableField("travel_date")
     private LocalDate tripDate;

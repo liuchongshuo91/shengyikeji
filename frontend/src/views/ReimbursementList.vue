@@ -87,6 +87,17 @@ async function voidDocument(row: any) {
   }
 }
 
+async function deleteDocument(row: any) {
+  await ElMessageBox.confirm('删除后不可恢复，确定删除当前单据吗？', '提示', { type: 'error' })
+  try {
+    await api.deleteReimbursement(row.id)
+    ElMessage.success('删除成功')
+    loadPage()
+  } catch (error: any) {
+    ElMessage.error(error.message || '删除失败')
+  }
+}
+
 onMounted(async () => {
   await loadDict()
   await loadPage()
@@ -164,6 +175,7 @@ onMounted(async () => {
                   <el-dropdown-menu>
                     <el-dropdown-item @click="openDetail(row.id)">查看</el-dropdown-item>
                     <el-dropdown-item :icon="Delete" @click="voidDocument(row)">作废</el-dropdown-item>
+                    <el-dropdown-item :icon="Delete" @click="deleteDocument(row)">删除</el-dropdown-item>
                   </el-dropdown-menu>
                 </template>
               </el-dropdown>

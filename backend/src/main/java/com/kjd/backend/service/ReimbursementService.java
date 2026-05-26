@@ -3,13 +3,16 @@ package com.kjd.backend.service;
 import com.kjd.backend.dto.ReimbursementQueryDTO;
 import com.kjd.backend.entity.Reimbursement;
 import com.kjd.backend.vo.PageResultVO;
+import com.kjd.backend.vo.ReimbursementVO;
 
 public interface ReimbursementService {
-    PageResultVO<Reimbursement> page(ReimbursementQueryDTO query);
+    PageResultVO<ReimbursementVO> page(ReimbursementQueryDTO query);
 
-    Reimbursement find(String id);
+    ReimbursementVO find(Long id);
 
-    Reimbursement save(Reimbursement item, boolean submit);
+    ReimbursementVO save(Reimbursement item, boolean submit);
 
-    void voidDocument(String id);
+    void voidDocument(Long id);
+
+    void delete(Long id);
 }

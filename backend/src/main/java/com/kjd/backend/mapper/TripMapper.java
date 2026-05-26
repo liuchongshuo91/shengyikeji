@@ -10,13 +10,7 @@ import java.util.List;
 @Mapper
 public interface TripMapper extends BaseMapper<Trip> {
 
-    /**
-     * 根据主表ID查询行程列表
-     */
-    List<Trip> selectByMainId(@Param("mainId") String mainId);
+    List<Trip> selectByMainId(@Param("mainId") Long mainId);
 
-    /**
-     * 根据主表ID删除行程
-     */
-    int deleteByMainId(@Param("mainId") String mainId);
+    int deleteByMainId(@Param("mainId") Long mainId);
 }

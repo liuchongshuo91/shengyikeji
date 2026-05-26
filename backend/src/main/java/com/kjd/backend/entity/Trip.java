@@ -12,11 +12,11 @@ import java.time.LocalDate;
 @TableName("fk_reim_itinerary")
 public class Trip {
 
-    @TableId(type = IdType.ASSIGN_UUID)
-    private String id;
+    @TableId(type = IdType.AUTO)
+    private Long id;
 
     @TableField("main_id")
-    private String mainId;
+    private Long mainId;
 
     @TableField("traveler_id")
     private String travelerId;

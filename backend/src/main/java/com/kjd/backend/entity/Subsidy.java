@@ -14,14 +14,14 @@ import java.util.List;
 @TableName("fk_reim_subsidy")
 public class Subsidy {
 
-    @TableId(type = IdType.ASSIGN_UUID)
-    private String id;
+    @TableId(type = IdType.AUTO)
+    private Long id;
 
     @TableField("main_id")
-    private String mainId;
+    private Long mainId;
 
     @TableField("trip_id")
-    private String tripId;
+    private Long tripId;
 
     @TableField("traveler_id")
     private String travelerId;

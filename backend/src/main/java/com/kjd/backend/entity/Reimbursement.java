@@ -18,8 +18,8 @@ import java.util.List;
 @TableName(value = "fk_reim_main", autoResultMap = true)
 public class Reimbursement {
 
-    @TableId(type = IdType.ASSIGN_UUID)
-    private String id;
+    @TableId(type = IdType.AUTO)
+    private Long id;
 
     @TableField("reim_no")
     private String reimbursementNo;

@@ -12,14 +12,8 @@ import java.util.List;
 @Mapper
 public interface ReimbursementMapper extends BaseMapper<Reimbursement> {
 
-    /**
-     * 根据主表ID查询行程列表
-     */
-    List<Reimbursement> selectWithDetails(@Param("id") String id);
+    List<Reimbursement> selectWithDetails(@Param("id") Long id);
 
-    /**
-     * 分页查询（带条件）— 由 MyBatis Plus 分页插件自动处理分页和 count
-     */
     IPage<Reimbursement> selectPageList(Page<Reimbursement> page,
                                         @Param("reimbursementNo") String reimbursementNo,
                                         @Param("reimbursementTitle") String reimbursementTitle,
@@ -29,8 +23,5 @@ public interface ReimbursementMapper extends BaseMapper<Reimbursement> {
                                         @Param("reimburserId") String reimburserId,
                                         @Param("businessTypeId") String businessTypeId);
 
-    /**
-     * 更新状态
-     */
-    int updateStatusById(@Param("id") String id, @Param("status") Integer status);
+    int updateStatusById(@Param("id") Long id, @Param("status") Integer status);
 }

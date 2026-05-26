@@ -11,7 +11,6 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 
 @Component
 public class DatabaseInitializer {
@@ -37,7 +36,7 @@ public class DatabaseInitializer {
     private void createTables() {
         jdbcTemplate.execute("""
                 create table if not exists fk_reim_main (
-                  id varchar(32) primary key,
+                  id bigint auto_increment primary key,
                   creation_time datetime(6),
                   reimbursement_title varchar(500),
                   reimburser_id varchar(32),
@@ -68,8 +67,8 @@ public class DatabaseInitializer {
                 """);
         jdbcTemplate.execute("""
                 create table if not exists fk_reim_itinerary (
-                  id varchar(32) primary key,
-                  main_id varchar(32) not null,
+                  id bigint auto_increment primary key,
+                  main_id bigint not null,
                   traveler_id varchar(20),
                   traveler_no varchar(32),
                   traveler_name varchar(20),
@@ -84,8 +83,8 @@ public class DatabaseInitializer {
                 """);
         jdbcTemplate.execute("""
                 create table if not exists fk_reim_subsidy (
-                  id varchar(32) primary key,
-                  main_id varchar(32) not null,
+                  id bigint auto_increment primary key,
+                  main_id bigint not null,
                   traveler_id varchar(20),
                   traveler_no varchar(20),
                   traveler_name varchar(20),
@@ -104,13 +103,13 @@ public class DatabaseInitializer {
                   business_type_id varchar(32),
                   business_type_no varchar(20),
                   business_type_name varchar(40),
-                  trip_id varchar(32)
+                  trip_id bigint
                 )
                 """);
         jdbcTemplate.execute("""
                 create table if not exists fk_subsidy_calendar (
-                  id varchar(32) primary key,
-                  main_id varchar(32) not null,
+                  id bigint auto_increment primary key,
+                  main_id bigint not null,
                   travel_date varchar(20) not null,
                   travel_date_week varchar(32),
                   subsidized_cities varchar(32),
@@ -156,7 +155,6 @@ public class DatabaseInitializer {
                     """, String.class);
         } catch (Exception ignored) {}
         if ("varchar".equalsIgnoreCase(colType)) {
-            // Replace 'T' with space so MySQL can parse the datetime string
             jdbcTemplate.execute("update fk_reim_main set creation_time = replace(creation_time, 'T', ' ') where creation_time like '%T%'");
             jdbcTemplate.execute("alter table fk_reim_main modify column creation_time datetime(6)");
         }
@@ -195,7 +193,7 @@ public class DatabaseInitializer {
     }
 
     private void addItineraryColumns() {
-        addColumn("fk_reim_itinerary", "main_id", "varchar(32)");
+        addColumn("fk_reim_itinerary", "main_id", "bigint");
         addColumn("fk_reim_itinerary", "traveler_id", "varchar(20)");
         addColumn("fk_reim_itinerary", "traveler_no", "varchar(32)");
         addColumn("fk_reim_itinerary", "traveler_name", "varchar(20)");
@@ -209,7 +207,7 @@ public class DatabaseInitializer {
     }
 
     private void addSubsidyColumns() {
-        addColumn("fk_reim_subsidy", "main_id", "varchar(32)");
+        addColumn("fk_reim_subsidy", "main_id", "bigint");
         addColumn("fk_reim_subsidy", "traveler_id", "varchar(20)");
         addColumn("fk_reim_subsidy", "traveler_no", "varchar(20)");
         addColumn("fk_reim_subsidy", "traveler_name", "varchar(20)");
@@ -228,11 +226,11 @@ public class DatabaseInitializer {
         addColumn("fk_reim_subsidy", "business_type_id", "varchar(32)");
         addColumn("fk_reim_subsidy", "business_type_no", "varchar(20)");
         addColumn("fk_reim_subsidy", "business_type_name", "varchar(40)");
-        addColumn("fk_reim_subsidy", "trip_id", "varchar(32)");
+        addColumn("fk_reim_subsidy", "trip_id", "bigint");
     }
 
     private void addCalendarColumns() {
-        addColumn("fk_subsidy_calendar", "main_id", "varchar(32)");
+        addColumn("fk_subsidy_calendar", "main_id", "bigint");
         addColumn("fk_subsidy_calendar", "travel_date", "varchar(20)");
         addColumn("fk_subsidy_calendar", "travel_date_week", "varchar(32)");
         addColumn("fk_subsidy_calendar", "subsidized_cities", "varchar(32)");
@@ -250,7 +248,6 @@ public class DatabaseInitializer {
     private void seed() {
         for (int i = 0; i < 10; i++) {
             Reimbursement item = new Reimbursement();
-            item.setId(uuid());
             item.setReimbursementNo("RCBX202605" + String.format("%04d", 15002 - i * 37));
             item.setCreationTime(LocalDateTime.now().minusDays(i + 3L));
             item.setSubmitDate(LocalDate.now().minusDays(i + 2L));
@@ -266,7 +263,7 @@ public class DatabaseInitializer {
             item.setReimCompanyId("1C54557F1782E000");
             item.setReimCompanyName("胜意科技北京分公司");
             item.setBusinessTypeId("1B5FEB7DD4396000");
-            item.setBusinessTypeName(i == 7 || i == 9 ? "项目出差" : "项目出差");
+            item.setBusinessTypeName("项目出差");
             item.setDocumentType("日常报销单");
             item.setSubsidyTotal(BigDecimal.ZERO);
             reimbursementMapper.insert(item);
@@ -303,21 +300,6 @@ public class DatabaseInitializer {
         }
     }
 
-    private void dropUniqueIndex(String table, String column) {
-        List<String> indexes = jdbcTemplate.queryForList("""
-                select distinct index_name
-                from information_schema.statistics
-                where table_schema = database()
-                  and table_name = ?
-                  and column_name = ?
-                  and non_unique = 0
-                  and index_name <> 'PRIMARY'
-                """, String.class, table, column);
-        for (String index : indexes) {
-            jdbcTemplate.execute("alter table " + table + " drop index `" + index + "`");
-        }
-    }
-
     private void relaxLegacyRequiredColumns(String table) {
         List<Map<String, Object>> columns = jdbcTemplate.queryForList("""
                 select column_name, column_type
@@ -334,9 +316,5 @@ public class DatabaseInitializer {
             String type = String.valueOf(column.get("column_type"));
             jdbcTemplate.execute("alter table " + table + " modify column `" + name + "` " + type + " null");
         }
-    }
-
-    private static String uuid() {
-        return UUID.randomUUID().toString().replace("-", "");
     }
 }

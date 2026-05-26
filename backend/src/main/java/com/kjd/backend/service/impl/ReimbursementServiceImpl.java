@@ -15,7 +15,7 @@ import com.kjd.backend.mapper.TripMapper;
 import com.kjd.backend.service.DictionaryService;
 import com.kjd.backend.service.ReimbursementService;
 import com.kjd.backend.vo.DictionaryItemVO;
-import com.kjd.backend.vo.PageResultVO;
+import com.kjd.backend.vo.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -55,7 +55,7 @@ public class ReimbursementServiceImpl implements ReimbursementService {
     }
 
     @Override
-    public PageResultVO<Reimbursement> page(ReimbursementQueryDTO query) {
+    public PageResultVO<ReimbursementVO> page(ReimbursementQueryDTO query) {
         int page = Math.max(query.page, 1);
         int size = Math.max(query.size, 1);
 
@@ -70,41 +70,37 @@ public class ReimbursementServiceImpl implements ReimbursementService {
                 query.businessTypeId
         );
 
-        for (Reimbursement record : result.getRecords()) {
-            record.setStatusName(statusName(record.getStatus()));
-        }
+        List<ReimbursementVO> voList = result.getRecords().stream()
+                .map(this::toVO)
+                .toList();
 
-        return new PageResultVO<>(result.getTotal(), page, size, result.getRecords());
+        return new PageResultVO<>(result.getTotal(), page, size, voList);
     }
 
     @Override
-    public Reimbursement find(String id) {
+    public ReimbursementVO find(Long id) {
         Reimbursement item = reimbursementMapper.selectById(id);
-        if (item != null) {
-            item.setStatusName(statusName(item.getStatus()));
-            // 加载行程
-            List<Trip> trips = tripMapper.selectByMainId(id);
-            item.setTrips(trips);
-            // 加载补助
-            List<Subsidy> subsidies = subsidyMapper.selectByMainId(id);
-            for (Subsidy subsidy : subsidies) {
-                subsidy.setTripDateRange(formatTripDateRange(item, subsidy));
-                subsidy.setRoute(formatRoute(item, subsidy));
-                // 加载日历明细
-                List<CalendarDay> calendar = calendarDayMapper.selectBySubsidyId(subsidy.getId());
-                for (CalendarDay day : calendar) {
-                    parseReimbursed(day);
-                }
-                subsidy.setCalendar(calendar);
+        if (item == null) return null;
+        item.setStatusName(statusName(item.getStatus()));
+        List<Trip> trips = tripMapper.selectByMainId(id);
+        item.setTrips(trips);
+        List<Subsidy> subsidies = subsidyMapper.selectByMainId(id);
+        for (Subsidy subsidy : subsidies) {
+            subsidy.setTripDateRange(formatTripDateRange(item, subsidy));
+            subsidy.setRoute(formatRoute(item, subsidy));
+            List<CalendarDay> calendar = calendarDayMapper.selectBySubsidyId(subsidy.getId());
+            for (CalendarDay day : calendar) {
+                parseReimbursed(day);
             }
-            item.setSubsidies(subsidies);
+            subsidy.setCalendar(calendar);
         }
-        return item;
+        item.setSubsidies(subsidies);
+        return toDetailVO(item);
     }
 
     @Override
     @Transactional
-    public Reimbursement save(Reimbursement item, boolean submit) {
+    public ReimbursementVO save(Reimbursement item, boolean submit) {
         validateHeader(item, submit);
         rebuildSubsidies(item);
         rebuildTotals(item);
@@ -113,15 +109,12 @@ public class ReimbursementServiceImpl implements ReimbursementService {
         validateAllocations(item, submit);
         item.setStatus(submit ? 1 : 0);
 
-        boolean isNew = !StringUtils.hasText(item.getId());
+        boolean isNew = item.getId() == null;
         if (!isNew) {
             Reimbursement existing = reimbursementMapper.selectById(item.getId());
             if (existing == null) throw new IllegalArgumentException("单据不存在");
             if (existing.getStatus() == 2) throw new IllegalArgumentException("已作废单据不可编辑");
             if (existing.getStatus() == 1 && !submit) throw new IllegalArgumentException("已提交单据不可退回草稿");
-        }
-        if (isNew) {
-            item.setId(uuid());
         }
         if (!StringUtils.hasText(item.getReimbursementNo())) {
             item.setReimbursementNo(nextNo());
@@ -145,41 +138,43 @@ public class ReimbursementServiceImpl implements ReimbursementService {
     }
 
     @Override
-    public void voidDocument(String id) {
+    public void voidDocument(Long id) {
         Reimbursement existing = reimbursementMapper.selectById(id);
         if (existing == null) throw new IllegalArgumentException("单据不存在");
         if (existing.getStatus() == 2) throw new IllegalArgumentException("单据已作废，不可重复作废");
         reimbursementMapper.updateStatusById(id, 2);
     }
 
+    @Override
+    @Transactional
+    public void delete(Long id) {
+        Reimbursement existing = reimbursementMapper.selectById(id);
+        if (existing == null) throw new IllegalArgumentException("单据不存在");
+        calendarDayMapper.deleteByMainId(id);
+        subsidyMapper.deleteByMainId(id);
+        tripMapper.deleteByMainId(id);
+        reimbursementMapper.deleteById(id);
+    }
+
     @Transactional
     protected void rebuildDetails(Reimbursement item) {
-        // 删除旧的子表数据
         calendarDayMapper.deleteByMainId(item.getId());
         subsidyMapper.deleteByMainId(item.getId());
         tripMapper.deleteByMainId(item.getId());
 
-        // 插入行程
         for (Trip trip : item.getTrips()) {
-            if (!StringUtils.hasText(trip.getId())) {
-                trip.setId(uuid());
-            }
+            trip.setId(null);
             trip.setMainId(item.getId());
             tripMapper.insert(trip);
         }
 
-        // 插入补助和日历明细
         for (Subsidy subsidy : item.getSubsidies()) {
-            if (!StringUtils.hasText(subsidy.getId())) {
-                subsidy.setId(uuid());
-            }
+            subsidy.setId(null);
             subsidy.setMainId(item.getId());
             subsidyMapper.insert(subsidy);
 
             for (CalendarDay day : subsidy.getCalendar()) {
-                if (!StringUtils.hasText(day.getId())) {
-                    day.setId(uuid());
-                }
+                day.setId(null);
                 day.setMainId(subsidy.getId());
                 day.setReimbursed(toReimbursedString(day));
                 calendarDayMapper.insert(day);
@@ -216,13 +211,11 @@ public class ReimbursementServiceImpl implements ReimbursementService {
     }
 
     private void rebuildSubsidies(Reimbursement item) {
-        Map<String, Subsidy> existing = new HashMap<>();
+        Map<Long, Subsidy> existing = new HashMap<>();
         for (Subsidy subsidy : item.getSubsidies()) existing.put(subsidy.getTripId(), subsidy);
         item.getSubsidies().clear();
         for (Trip trip : item.getTrips()) {
-            if (!StringUtils.hasText(trip.getId())) trip.setId(uuid());
             Subsidy subsidy = existing.getOrDefault(trip.getId(), new Subsidy());
-            subsidy.setId(StringUtils.hasText(subsidy.getId()) ? subsidy.getId() : uuid());
             subsidy.setTripId(trip.getId());
             subsidy.setTravelerId(trip.getTravelerId());
             subsidy.setTravelerName(trip.getTravelerName());
@@ -273,7 +266,6 @@ public class ReimbursementServiceImpl implements ReimbursementService {
     private void validateAllocations(Reimbursement item, boolean submit) {
         if (item.getAllocations().isEmpty()) {
             Allocation first = new Allocation();
-            first.setId(uuid());
             first.setReimCompanyId(item.getReimCompanyId());
             first.setReimCompanyNo(item.getReimCompanyNo());
             first.setReimCompanyName(item.getReimCompanyName());
@@ -284,7 +276,6 @@ public class ReimbursementServiceImpl implements ReimbursementService {
         BigDecimal ratio = BigDecimal.ZERO;
         BigDecimal amount = BigDecimal.ZERO;
         for (Allocation allocation : item.getAllocations()) {
-            if (!StringUtils.hasText(allocation.getId())) allocation.setId(uuid());
             if (submit) require(allocation.getReimCompanyId(), "费用归属不能为空");
             ratio = ratio.add(money(allocation.getAllocationRatio()));
             amount = amount.add(money(allocation.getAllocationAmount()));
@@ -374,10 +365,6 @@ public class ReimbursementServiceImpl implements ReimbursementService {
         return "未知";
     }
 
-    private static String uuid() {
-        return UUID.randomUUID().toString().replace("-", "");
-    }
-
     private String nextNo() {
         return "CLBX" + LocalDate.now().toString().replace("-", "")
                 + UUID.randomUUID().toString().replace("-", "").substring(0, 8).toUpperCase();
@@ -396,5 +383,110 @@ public class ReimbursementServiceImpl implements ReimbursementService {
         day.setMealSelected(reimbursed != null && reimbursed.contains("meal"));
         day.setTransportSelected(reimbursed != null && reimbursed.contains("transport"));
         day.setPhoneSelected(reimbursed != null && reimbursed.contains("phone"));
+    }
+
+    private ReimbursementVO toVO(Reimbursement e) {
+        ReimbursementVO vo = new ReimbursementVO();
+        vo.setId(e.getId());
+        vo.setReimbursementNo(e.getReimbursementNo());
+        vo.setStatus(e.getStatus());
+        vo.setStatusName(e.getStatusName());
+        vo.setCreationTime(e.getCreationTime());
+        vo.setSubmitDate(e.getSubmitDate());
+        vo.setReimbursementTitle(e.getReimbursementTitle());
+        vo.setReimburserId(e.getReimburserId());
+        vo.setReimburserNo(e.getReimburserNo());
+        vo.setReimburserName(e.getReimburserName());
+        vo.setReimDepartmentId(e.getReimDepartmentId());
+        vo.setReimDepartmentNo(e.getReimDepartmentNo());
+        vo.setReimDepartmentName(e.getReimDepartmentName());
+        vo.setReimCompanyId(e.getReimCompanyId());
+        vo.setReimCompanyNo(e.getReimCompanyNo());
+        vo.setReimCompanyName(e.getReimCompanyName());
+        vo.setBusinessTypeId(e.getBusinessTypeId());
+        vo.setBusinessTypeNo(e.getBusinessTypeNo());
+        vo.setBusinessTypeName(e.getBusinessTypeName());
+        vo.setBusinessTripReason(e.getBusinessTripReason());
+        vo.setDocumentType(e.getDocumentType());
+        vo.setSubsidyTotal(e.getSubsidyTotal());
+        vo.setMealAllowance(e.getMealAllowance());
+        vo.setTransportationAllowance(e.getTransportationAllowance());
+        vo.setPhoneAllowance(e.getPhoneAllowance());
+        vo.setRemarks(e.getRemarks());
+        return vo;
+    }
+
+    private ReimbursementVO toDetailVO(Reimbursement e) {
+        ReimbursementVO vo = toVO(e);
+        vo.setTrips(e.getTrips().stream().map(this::toTripVO).toList());
+        vo.setSubsidies(e.getSubsidies().stream().map(this::toSubsidyVO).toList());
+        vo.setAllocations(e.getAllocations().stream().map(this::toAllocationVO).toList());
+        return vo;
+    }
+
+    private TripVO toTripVO(Trip t) {
+        TripVO vo = new TripVO();
+        vo.setId(t.getId());
+        vo.setMainId(t.getMainId());
+        vo.setTravelerId(t.getTravelerId());
+        vo.setTravelerNo(t.getTravelerNo());
+        vo.setTravelerName(t.getTravelerName());
+        vo.setFromCityNo(t.getFromCityNo());
+        vo.setFromCityName(t.getFromCityName());
+        vo.setToCityNo(t.getToCityNo());
+        vo.setToCityName(t.getToCityName());
+        vo.setStartDate(t.getStartDate());
+        vo.setEndDate(t.getEndDate());
+        vo.setTripDescription(t.getTripDescription());
+        return vo;
+    }
+
+    private SubsidyVO toSubsidyVO(Subsidy s) {
+        SubsidyVO vo = new SubsidyVO();
+        vo.setId(s.getId());
+        vo.setMainId(s.getMainId());
+        vo.setTripId(s.getTripId());
+        vo.setTravelerId(s.getTravelerId());
+        vo.setTravelerName(s.getTravelerName());
+        vo.setTripDateRange(s.getTripDateRange());
+        vo.setDays(s.getDays());
+        vo.setRoute(s.getRoute());
+        vo.setSubsidyCity(s.getSubsidyCity());
+        vo.setApplyAmount(s.getApplyAmount());
+        vo.setSubsidyAmount(s.getSubsidyAmount());
+        vo.setCalendar(s.getCalendar().stream().map(this::toCalendarDayVO).toList());
+        return vo;
+    }
+
+    private CalendarDayVO toCalendarDayVO(CalendarDay d) {
+        CalendarDayVO vo = new CalendarDayVO();
+        vo.setId(d.getId());
+        vo.setTripDate(d.getTripDate());
+        vo.setWeekName(d.getWeekName());
+        vo.setSubsidyCity(d.getSubsidyCity());
+        vo.setMealSelected(d.isMealSelected());
+        vo.setTransportSelected(d.isTransportSelected());
+        vo.setPhoneSelected(d.isPhoneSelected());
+        vo.setMealStandard(d.getMealStandard());
+        vo.setTransportStandard(d.getTransportStandard());
+        vo.setPhoneStandard(d.getPhoneStandard());
+        vo.setMealAmount(d.getMealAmount());
+        vo.setTransportAmount(d.getTransportAmount());
+        vo.setPhoneAmount(d.getPhoneAmount());
+        return vo;
+    }
+
+    private AllocationVO toAllocationVO(Allocation a) {
+        AllocationVO vo = new AllocationVO();
+        vo.setId(a.getId());
+        vo.setReimCompanyId(a.getReimCompanyId());
+        vo.setReimCompanyNo(a.getReimCompanyNo());
+        vo.setReimCompanyName(a.getReimCompanyName());
+        vo.setProjectId(a.getProjectId());
+        vo.setProjectNo(a.getProjectNo());
+        vo.setProjectName(a.getProjectName());
+        vo.setAllocationRatio(a.getAllocationRatio());
+        vo.setAllocationAmount(a.getAllocationAmount());
+        return vo;
     }
 }
